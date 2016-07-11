@@ -63,7 +63,7 @@ app.directive('ckeditor', ['$timeout', '$q', function ($timeout, $q) {
                         { name: 'insert', items: [ 'Image', 'Table', 'SpecialChar' ] },
                         { name: 'forms', items: [ 'Outdent', 'Indent' ] },
                         { name: 'clipboard', items: [ 'Undo', 'Redo' ] },
-                        { name: 'document', items: [ 'PageBreak', 'Source' ] }
+                        { name: 'document', items: [ 'PageBreak', 'Footnotes', 'Source' ] }
                     ],
                     disableNativeSpellChecker: false,
                     uiColor: '#FAFAFA',
