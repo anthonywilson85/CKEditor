@@ -44,6 +44,7 @@
             // Force a reorder on startup to make sure all vars are set: (e.g. footnotes store):
             editor.on('instanceReady', function(evt) {
                 $this.reorderMarkers(editor);
+                $this.setHoverHandlers(editor);
             });
 
             // Add the reorder change event:
@@ -115,8 +116,8 @@
             // Define an editor command that opens our dialog.
             editor.addCommand('footnotes', new CKEDITOR.dialogCommand('footnotesDialog', {
                 // @TODO: This needs work:
-                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*]',
-                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*]'
+                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];span[data-footnote-id]',
+                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];span[data-footnote-id]'
             }));
 
             // Create a toolbar button that executes the above command.
@@ -134,9 +135,8 @@
 
             editor.on( 'doubleclick', function( evt ) {
                 var element = evt.data.element;
-                console.warn( 'element is read only ');
-                if ( !element.isReadOnly() ) {
-                    logger.warn( 'element is read only ');
+                if ( element.isReadOnly() ) {
+                    console.warn( 'element is read only ');
                 }
             }, null, null, 0 );
 
@@ -158,7 +158,8 @@
             // Insert the marker:
             var footnote_marker = '<sup data-footnote-id="' + footnote_id + '">X</sup>';
 
-            editor.insertHtml(footnote_marker);
+            this.attatchSelectionToFootnote(footnote_id, editor)
+            this.insertFootnoteMarker(footnote_marker, editor)
 
             if (is_new) {
                 editor.fire('lockSnapshot');
@@ -166,6 +167,56 @@
                 editor.fire('unlockSnapshot');
             }
             this.reorderMarkers(editor);
+        },
+
+        insertFootnoteMarker: function(footnote_marker, editor){
+            // Obtain the current selection & range
+            var selection = editor.getSelection();
+            var ranges = selection.getRanges();
+            var range = ranges[0];
+
+            // Create a new range from the editor object
+            var newRange = editor.createRange();
+
+            // move cursor to end of selected range
+            newRange.setEnd(range.endContainer, range.endOffset);
+
+            // change selection
+            var newRanges = [newRange];
+            selection.selectRanges(newRanges);
+
+            // Insert the sup
+            editor.insertHtml(footnote_marker);
+        },
+
+        attatchSelectionToFootnote: function(footnote, editor){
+            var selected_text = editor.getSelection().getSelectedText();
+            var newElement = new CKEDITOR.dom.element("span");
+            newElement.setAttributes({'data-footnote-id':footnote});
+            newElement.setText(selected_text);
+            editor.insertElement(newElement);
+
+            var $contents = $(editor.editable().$);
+            $contents.on('mouseover', 'span[data-footnote-id]',function(){
+                $(this).css('background-color', '#ececec');
+            });
+            $contents.on('mouseout', 'span[data-footnote-id]',function(){
+                $(this).css('background-color', '');
+            });
+        },
+
+        setHoverHandlers: function(editor){
+            editor.on('mode', function(e){
+                if(editor.mode === 'wysiwyg'){
+                    var $contents = $(editor.editable().$);
+                    $contents.on('mouseover', 'span[data-footnote-id]',function(){
+                        $(this).css('background-color', '#ececec');
+                    });
+                    $contents.on('mouseout', 'span[data-footnote-id]',function(){
+                        $(this).css('background-color', '');
+                    });
+                }
+            });
         },
 
         buildFootnote: function(footnote_id, footnote_text, data, editor) {
