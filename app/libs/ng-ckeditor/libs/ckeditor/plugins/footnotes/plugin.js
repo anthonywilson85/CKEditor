@@ -77,7 +77,7 @@
                 header: {
                     selector: 'header > *',
                     //allowedContent: ''
-                    allowedContent: 'strong em span sub sup;'
+                    allowedContent: 'strong em span sub sup footnotespan;'
                 }
             };
             var contents = $('<div>' + editor.element.$.textContent + '</div>')
@@ -116,8 +116,8 @@
             // Define an editor command that opens our dialog.
             editor.addCommand('footnotes', new CKEDITOR.dialogCommand('footnotesDialog', {
                 // @TODO: This needs work:
-                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];span[data-footnote-id]',
-                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];span[data-footnote-id]'
+                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[data-footnote]',
+                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[data-footnote]'
             }));
 
             // Create a toolbar button that executes the above command.
@@ -158,8 +158,7 @@
             // Insert the marker:
             var footnote_marker = '<sup data-footnote-id="' + footnote_id + '">X</sup>';
 
-            this.attatchSelectionToFootnote(footnote_id, editor)
-            this.insertFootnoteMarker(footnote_marker, editor)
+            this.attatchSelectionToFootnote(footnote_id, footnote_marker, editor)
 
             if (is_new) {
                 editor.fire('lockSnapshot');
@@ -169,50 +168,41 @@
             this.reorderMarkers(editor);
         },
 
-        insertFootnoteMarker: function(footnote_marker, editor){
-            // Obtain the current selection & range
-            var selection = editor.getSelection();
-            var ranges = selection.getRanges();
-            var range = ranges[0];
-
-            // Create a new range from the editor object
-            var newRange = editor.createRange();
-
-            // move cursor to end of selected range
-            newRange.setEnd(range.endContainer, range.endOffset);
-
-            // change selection
-            var newRanges = [newRange];
-            selection.selectRanges(newRanges);
-
-            // Insert the sup
-            editor.insertHtml(footnote_marker);
-        },
-
-        attatchSelectionToFootnote: function(footnote, editor){
+        attatchSelectionToFootnote: function(footnote, footnote_marker, editor){
             var selected_text = editor.getSelection().getSelectedText();
-            var newElement = new CKEDITOR.dom.element("span");
-            newElement.setAttributes({'data-footnote-id':footnote});
+            var newElement = new CKEDITOR.dom.element("footnotespan");
+            newElement.setAttributes({'data-footnote':footnote});
             newElement.setText(selected_text);
             editor.insertElement(newElement);
 
+            this.insertFootnoteMarker(footnote, editor, newElement);
+
             var $contents = $(editor.editable().$);
-            $contents.on('mouseover', 'span[data-footnote-id]',function(){
+            $contents.on('mouseover', 'footnotespan[data-footnote]',function(){
                 $(this).css('background-color', '#ececec');
             });
-            $contents.on('mouseout', 'span[data-footnote-id]',function(){
+            $contents.on('mouseout', 'footnotespan[data-footnote]',function(){
                 $(this).css('background-color', '');
             });
+        },
+
+
+        insertFootnoteMarker: function(footnote_id, editor, element){
+            var sup = new CKEDITOR.dom.element('sup');
+            sup.setAttributes({'data-footnote-id' : footnote_id});
+            sup.setText('X')
+            element.append(sup);
+            editor.widgets.initOn( sup, 'footnotemarker' )
         },
 
         setHoverHandlers: function(editor){
             editor.on('mode', function(e){
                 if(editor.mode === 'wysiwyg'){
                     var $contents = $(editor.editable().$);
-                    $contents.on('mouseover', 'span[data-footnote-id]',function(){
+                    $contents.on('mouseover', 'footnotespan[data-footnote]',function(){
                         $(this).css('background-color', '#ececec');
                     });
-                    $contents.on('mouseout', 'span[data-footnote-id]',function(){
+                    $contents.on('mouseout', 'footnotespan[data-footnote]',function(){
                         $(this).css('background-color', '');
                     });
                 }
@@ -274,6 +264,16 @@
             }
             this.footnote_ids.push(id);
             return id;
+        },
+
+        removeUnattatchedFootnoteHighlightSpans: function(editor){
+            var $contents = $(editor.editable().$);
+            var $spans = $contents.find('footnotespan[data-footnote]');
+            $spans.each(function(){
+                if( $(this).find('sup[data-footnote-id]').length === 0){
+                    $(this).contents().unwrap()
+                }
+            });
         },
 
         reorderMarkers: function(editor) {
@@ -369,6 +369,8 @@
                 n = parseInt(i) + 1;
                 footnote_widget.initEditable('footnote_' + n, {selector: '#footnote' + prefix + '-' + n +' cite', allowedContent: 'a[href]; cite[*](*); em strong span'});
             }
+
+            this.removeUnattatchedFootnoteHighlightSpans(editor);
 
             editor.fire('unlockSnapshot');
         }
