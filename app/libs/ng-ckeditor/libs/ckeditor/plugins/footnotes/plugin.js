@@ -44,6 +44,7 @@
             // Force a reorder on startup to make sure all vars are set: (e.g. footnotes store):
             editor.on('instanceReady', function(evt) {
                 $this.reorderMarkers(editor);
+                $this.setHoverHandlers(editor);
             });
 
             // Add the reorder change event:
@@ -76,7 +77,7 @@
                 header: {
                     selector: 'header > *',
                     //allowedContent: ''
-                    allowedContent: 'strong em span sub sup;'
+                    allowedContent: 'strong em span sub sup footnotespan;'
                 }
             };
             var contents = $('<div>' + editor.element.$.textContent + '</div>')
@@ -115,8 +116,8 @@
             // Define an editor command that opens our dialog.
             editor.addCommand('footnotes', new CKEDITOR.dialogCommand('footnotesDialog', {
                 // @TODO: This needs work:
-                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*]',
-                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*]'
+                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[data-footnote]',
+                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[data-footnote]'
             }));
 
             // Create a toolbar button that executes the above command.
@@ -134,9 +135,8 @@
 
             editor.on( 'doubleclick', function( evt ) {
                 var element = evt.data.element;
-                console.warn( 'element is read only ');
-                if ( !element.isReadOnly() ) {
-                    logger.warn( 'element is read only ');
+                if ( element.isReadOnly() ) {
+                    console.warn( 'element is read only ');
                 }
             }, null, null, 0 );
 
@@ -158,7 +158,7 @@
             // Insert the marker:
             var footnote_marker = '<sup data-footnote-id="' + footnote_id + '">X</sup>';
 
-            editor.insertHtml(footnote_marker);
+            this.attatchSelectionToFootnote(footnote_id, footnote_marker, editor)
 
             if (is_new) {
                 editor.fire('lockSnapshot');
@@ -166,6 +166,47 @@
                 editor.fire('unlockSnapshot');
             }
             this.reorderMarkers(editor);
+        },
+
+        attatchSelectionToFootnote: function(footnote, footnote_marker, editor){
+            var selected_text = editor.getSelection().getSelectedText();
+            var newElement = new CKEDITOR.dom.element("footnotespan");
+            newElement.setAttributes({'data-footnote':footnote});
+            newElement.setText(selected_text);
+            editor.insertElement(newElement);
+
+            this.insertFootnoteMarker(footnote, editor, newElement);
+
+            var $contents = $(editor.editable().$);
+            $contents.on('mouseover', 'footnotespan[data-footnote]',function(){
+                $(this).css('background-color', '#ececec');
+            });
+            $contents.on('mouseout', 'footnotespan[data-footnote]',function(){
+                $(this).css('background-color', '');
+            });
+        },
+
+
+        insertFootnoteMarker: function(footnote_id, editor, element){
+            var sup = new CKEDITOR.dom.element('sup');
+            sup.setAttributes({'data-footnote-id' : footnote_id});
+            sup.setText('X')
+            element.append(sup);
+            editor.widgets.initOn( sup, 'footnotemarker' )
+        },
+
+        setHoverHandlers: function(editor){
+            editor.on('mode', function(e){
+                if(editor.mode === 'wysiwyg'){
+                    var $contents = $(editor.editable().$);
+                    $contents.on('mouseover', 'footnotespan[data-footnote]',function(){
+                        $(this).css('background-color', '#ececec');
+                    });
+                    $contents.on('mouseout', 'footnotespan[data-footnote]',function(){
+                        $(this).css('background-color', '');
+                    });
+                }
+            });
         },
 
         buildFootnote: function(footnote_id, footnote_text, data, editor) {
@@ -223,6 +264,16 @@
             }
             this.footnote_ids.push(id);
             return id;
+        },
+
+        removeUnattatchedFootnoteHighlightSpans: function(editor){
+            var $contents = $(editor.editable().$);
+            var $spans = $contents.find('footnotespan[data-footnote]');
+            $spans.each(function(){
+                if( $(this).find('sup[data-footnote-id]').length === 0){
+                    $(this).contents().unwrap()
+                }
+            });
         },
 
         reorderMarkers: function(editor) {
@@ -318,6 +369,8 @@
                 n = parseInt(i) + 1;
                 footnote_widget.initEditable('footnote_' + n, {selector: '#footnote' + prefix + '-' + n +' cite', allowedContent: 'a[href]; cite[*](*); em strong span'});
             }
+
+            this.removeUnattatchedFootnoteHighlightSpans(editor);
 
             editor.fire('unlockSnapshot');
         }
