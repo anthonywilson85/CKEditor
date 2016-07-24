@@ -30,12 +30,84 @@
                     // The tab contents.
                     elements: [
                         {
-                            // Text input field for the footnotes text.
-                            type: 'textarea',
-                            id: 'new_footnote',
+                            type: 'select',
+                            id: 'footnote_classification_source_marking',
                             'class': 'footnote_text',
-                            label: 'New source marking:',
-                            inputStyle: 'height: 100px',
+                            label: 'Source marking classification:',
+                            items: [
+                                ['Unclassified', 'U'],
+                                ['Confidential', 'C'],
+                                ['Secret', 'S'],
+                                ['Top Secret', 'TS']
+                            ],
+                            default: 'U'
+                        },
+                        {
+                            type: 'select',
+                            id: 'footnote_lineage_type',
+                            'class': 'footnote_text',
+                            items: [
+                                ['Originator'],
+                                ['Author'],
+                                ['Producer'],
+                                ['Owner']
+                            ],
+                            default: 'Originator'
+                        },
+                        {
+                            type: 'text',
+                            id: 'footnote_lineage',
+                            'class': 'footnote_text',
+                        },
+                        {
+                            type: 'text',
+                            id: 'footnote_reference_id',
+                            'class': 'footnote_text',
+                            label: 'Reference ID:',
+                        },
+                        {
+                            type: 'text',
+                            id: 'footnote_document_title',
+                            'class': 'footnote_text',
+                            label: 'Document Title:',
+                        },
+                        {
+                            type: 'text',
+                            id: 'footnote_document_date',
+                            'class': 'footnote_text',
+                            label: 'Document Date:',
+                        },
+                        {
+                            type: 'select',
+                            id: 'footnote_source_information_classification',
+                            'class': 'footnote_text',
+                            label: 'Classification of source information:',
+                            items: [
+                                ['Unclassified', 'U'],
+                                ['Confidential', 'C'],
+                                ['Secret', 'S'],
+                                ['Top Secret', 'TS']
+                            ],
+                            default: 'U'
+                        },
+                        {
+                            type: 'select',
+                            id: 'footnote_source_document_classification',
+                            'class': 'footnote_text',
+                            label: 'Classification of source document:',
+                            items: [
+                                ['Unclassified', 'U'],
+                                ['Confidential', 'C'],
+                                ['Secret', 'S'],
+                                ['Top Secret', 'TS']
+                            ],
+                            default: 'U'
+                        },
+                        {
+                            type: 'text',
+                            id: 'footnote_source_descriptor',
+                            'class': 'footnote_text',
+                            label: 'Source Descriptor:',
                         },
                         {
                             // Text input field for the footnotes title (explanation).
@@ -92,9 +164,6 @@
                 this.setupContent();
 
                 var dialog = this;
-                CKEDITOR.on( 'instanceLoaded', function( evt ) {
-                    dialog.editor_name = evt.editor.name;
-                } );
 
                 // Allow page to scroll with dialog to allow for many/long footnotes
                 // (https://github.com/andykirk/CKEditorFootnotes/issues/12)
@@ -137,17 +206,20 @@
                     };
                     return true;
                 });
-
             },
 
             // This method is invoked once a user clicks the OK button, confirming the dialog.
             onOk: function() {
                 var dialog = this;
-                var footnote_editor = CKEDITOR.instances[dialog.editor_name];
-                var footnote_id     = dialog.getValueOf('tab-basic', 'footnote_id');
-                var footnote_data   = footnote_editor.getData();
-                footnote_editor.destroy();
-
+                var footnote_id = dialog.getValueOf('tab-basic', 'footnote_id');
+                var footnote_data = dialog.getValueOf('tab-basic', 'footnote_classification_source_marking') + ": " +
+                    dialog.getValueOf('tab-basic', 'footnote_lineage_type') + ": " + dialog.getValueOf('tab-basic', 'footnote_lineage') + "," +
+                    "Reference ID: " + dialog.getValueOf('tab-basic', 'footnote_reference_id') + "," +
+                    "Title: " + dialog.getValueOf('tab-basic', 'footnote_document_title') + "," +
+                    "Date: " + dialog.getValueOf('tab-basic', 'footnote_document_date') + "," +
+                    "Source Info Classification: " + dialog.getValueOf('tab-basic', 'footnote_source_information_classification') + ", " +
+                    "Source Document Classification: " + dialog.getValueOf('tab-basic', 'footnote_source_document_classification') + ", " +
+                    "Source Descriptor: " + dialog.getValueOf('tab-basic', 'footnote_source_descriptor');
                 if (footnote_id == '') {
                     // No existing id selected, check for new footnote:
                     if (footnote_data == '') {
@@ -166,9 +238,7 @@
             },
 
             onCancel: function() {
-                var dialog = this;
-                var footnote_editor = CKEDITOR.instances[dialog.editor_name];
-                footnote_editor.destroy();
+                // TODO: What to do here?
             }
         };
     });
