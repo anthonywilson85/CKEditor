@@ -240,7 +240,7 @@
             var $footnotes = $contents.find('.footnotes');
 
             if ($footnotes.length == 0) {
-                var header_title = editor.config.footnotesTitle ? editor.config.footnotesTitle : 'Footnotes';
+                var header_title = editor.config.footnotesTitle ? editor.config.footnotesTitle : 'Source Reference Citations';
                 var header_els = ['<h2>', '</h2>'];//editor.config.editor.config.footnotesHeaderEls
                 if (editor.config.footnotesHeaderEls) {
                     header_els = editor.config.footnotesHeaderEls;
