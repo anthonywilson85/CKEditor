@@ -269,6 +269,7 @@
         removeUnattatchedFootnoteHighlightSpans: function(editor){
             var $contents = $(editor.editable().$);
             var $spans = $contents.find('footnotespan[data-footnote]');
+
             $spans.each(function(){
                 if( $(this).find('sup[data-footnote-id]').length === 0){
                     $(this).contents().unwrap()
@@ -278,6 +279,8 @@
 
         reorderMarkers: function(editor) {
             editor.fire('lockSnapshot');
+            this.removeUnattatchedFootnoteHighlightSpans(editor);
+            
             var prefix  = editor.config.footnotesPrefix ? '-' + editor.config.footnotesPrefix : '';
             var $contents = $(editor.editable().$);
             var data = {
@@ -369,9 +372,6 @@
                 n = parseInt(i) + 1;
                 footnote_widget.initEditable('footnote_' + n, {selector: '#footnote' + prefix + '-' + n +' cite', allowedContent: 'a[href]; cite[*](*); em strong span'});
             }
-
-            this.removeUnattatchedFootnoteHighlightSpans(editor);
-
             editor.fire('unlockSnapshot');
         }
     });
