@@ -116,8 +116,8 @@
             // Define an editor command that opens our dialog.
             editor.addCommand('footnotes', new CKEDITOR.dialogCommand('footnotesDialog', {
                 // @TODO: This needs work:
-                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[data-footnote]',
-                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[data-footnote]'
+                allowedContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[marker-id]',
+                requiredContent: 'section[*](*);header[*](*);li[*];a[*];cite(*)[*];sup[*];footnotespan[marker-id]'
             }));
 
             // Create a toolbar button that executes the above command.
@@ -156,9 +156,10 @@
             }
 
             // Insert the marker:
-            var footnote_marker = '<sup data-footnote-id="' + footnote_id + '">X</sup>';
+            var marker_id = this.generateFootnoteId()
 
-            this.attatchSelectionToFootnote(footnote_id, footnote_marker, editor)
+            this.attatchSelectionToFootnote(marker_id, editor)
+            this.insertFootnoteMarker(footnote_id, marker_id, editor);
 
             if (is_new) {
                 editor.fire('lockSnapshot');
@@ -168,43 +169,54 @@
             this.reorderMarkers(editor);
         },
 
-        attatchSelectionToFootnote: function(footnote, footnote_marker, editor){
-            var selected_text = editor.getSelection().getSelectedText();
+        // This adds the footnotespan around the current selection
+        attatchSelectionToFootnote: function(marker_id, editor){
+            // Copy html of current selection
+            var selected_text = editor.getSelection().getRanges()[0].cloneContents().getHtml();
+
+            // Create footnotespan element and add in copied html, also add attribute of marker-id
             var newElement = new CKEDITOR.dom.element("footnotespan");
-            newElement.setAttributes({'data-footnote':footnote});
-            newElement.setText(selected_text);
+            newElement.setAttributes({'marker-id':marker_id});
+            newElement.setHtml(selected_text);
             editor.insertElement(newElement);
 
-            this.insertFootnoteMarker(footnote, editor, newElement);
-
-            var $contents = $(editor.editable().$);
-            $contents.on('mouseover', 'footnotespan[data-footnote]',function(){
-                $(this).css('background-color', '#ececec');
-            });
-            $contents.on('mouseout', 'footnotespan[data-footnote]',function(){
-                $(this).css('background-color', '');
-            });
+            // Adds highlighting effect immediately
+            this.highlightFootnoteSpan(editor)
         },
 
-
-        insertFootnoteMarker: function(footnote_id, editor, element){
+        // This adds the sup to the end of the paragraph
+        insertFootnoteMarker: function(footnote_id, marker_id, editor){
+            // Create Footnote Marker Element
             var sup = new CKEDITOR.dom.element('sup');
             sup.setAttributes({'data-footnote-id' : footnote_id});
+            sup.setAttributes({'marker-id' : marker_id});
             sup.setText('X')
-            element.append(sup);
+
+            // Insert it at the end of paragraph
+            var range = editor.getSelection().getRanges()[0];
+            range.moveToElementEditEnd(range.endContainer)
+            editor.getSelection().selectRanges( [ range ] )
+            editor.insertElement(sup)
+
+            // Turn it into a widget
             editor.widgets.initOn( sup, 'footnotemarker' )
         },
 
+        highlightFootnoteSpan: function(editor){
+            var $contents = $(editor.editable().$);
+            $contents.on('mouseover', 'footnotespan[marker-id],sup[marker-id]',function(){
+                $contents.find('footnotespan[marker-id="'+$(this).attr("marker-id")+'"]').css('background-color', '#ececec');
+            });
+            $contents.on('mouseout', 'footnotespan[marker-id],sup[marker-id]',function(){
+                $contents.find('footnotespan[marker-id="'+$(this).attr("marker-id")+'"]').css('background-color', '');
+            });
+        },
+
         setHoverHandlers: function(editor){
+            var that = this
             editor.on('mode', function(e){
                 if(editor.mode === 'wysiwyg'){
-                    var $contents = $(editor.editable().$);
-                    $contents.on('mouseover', 'footnotespan[data-footnote]',function(){
-                        $(this).css('background-color', '#ececec');
-                    });
-                    $contents.on('mouseout', 'footnotespan[data-footnote]',function(){
-                        $(this).css('background-color', '');
-                    });
+                    that.highlightFootnoteSpan(editor)
                 }
             });
         },
@@ -268,10 +280,11 @@
 
         removeUnattatchedFootnoteHighlightSpans: function(editor){
             var $contents = $(editor.editable().$);
-            var $spans = $contents.find('footnotespan[data-footnote]');
+            var $spans = $contents.find('footnotespan[marker-id]');
 
             $spans.each(function(){
-                if( $(this).find('sup[data-footnote-id]').length === 0){
+                // If the document does not have a 
+                if( $contents.find('sup[marker-id="'+$(this).attr("marker-id")+'"]').length === 0){
                     $(this).contents().unwrap()
                 }
             });
